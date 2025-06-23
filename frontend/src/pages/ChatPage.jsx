@@ -3,7 +3,6 @@ import { useParams } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
 import { useQuery } from "@tanstack/react-query";
 import { getStreamToken } from "../lib/api";
-
 import {
   Channel,
   ChannelHeader,
@@ -23,7 +22,6 @@ const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 
 const ChatPage = () => {
   const { id: targetUserId } = useParams();
-
   const [chatClient, setChatClient] = useState(null);
   const [channel, setChannel] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -33,7 +31,7 @@ const ChatPage = () => {
   const { data: tokenData } = useQuery({
     queryKey: ["streamToken"],
     queryFn: getStreamToken,
-    enabled: !!authUser, // this will run only when authUser is available
+    enabled: !!authUser,
   });
 
   useEffect(() => {
@@ -41,10 +39,7 @@ const ChatPage = () => {
       if (!tokenData?.token || !authUser) return;
 
       try {
-        console.log("Initializing stream chat client...");
-
         const client = StreamChat.getInstance(STREAM_API_KEY);
-
         await client.connectUser(
           {
             id: authUser._id,
@@ -54,19 +49,12 @@ const ChatPage = () => {
           tokenData.token
         );
 
-        //
         const channelId = [authUser._id, targetUserId].sort().join("-");
-
-        // you and me
-        // if i start the chat => channelId: [myId, yourId]
-        // if you start the chat => channelId: [yourId, myId]  => [myId,yourId]
-
         const currChannel = client.channel("messaging", channelId, {
           members: [authUser._id, targetUserId],
         });
 
         await currChannel.watch();
-
         setChatClient(client);
         setChannel(currChannel);
       } catch (error) {
@@ -83,11 +71,9 @@ const ChatPage = () => {
   const handleVideoCall = () => {
     if (channel) {
       const callUrl = `${window.location.origin}/call/${channel.id}`;
-
       channel.sendMessage({
         text: `I've started a video call. Join me here: ${callUrl}`,
       });
-
       toast.success("Video call link sent successfully!");
     }
   };
@@ -95,21 +81,34 @@ const ChatPage = () => {
   if (loading || !chatClient || !channel) return <ChatLoader />;
 
   return (
-    <div className="h-[93vh]">
-      <Chat client={chatClient}>
+    <div className="flex flex-col h-screen overflow-hidden">
+      <Chat client={chatClient} theme="messaging light">
         <Channel channel={channel}>
-          <div className="w-full relative">
-            <CallButton handleVideoCall={handleVideoCall} />
+          <div className="flex flex-col h-full relative">
+            {/* Call Button floating top-right */}
+            <div className="absolute top-2 right-3 z-10">
+              <CallButton handleVideoCall={handleVideoCall} />
+            </div>
+
             <Window>
-              <ChannelHeader />
-              <MessageList />
-              <MessageInput focus />
+              <div className="flex flex-col h-full">
+                <ChannelHeader />
+                <div className="flex-1 overflow-y-auto">
+                  <MessageList />
+                </div>
+                <div className="border-t border-base-300">
+                  <MessageInput focus />
+                </div>
+              </div>
             </Window>
+
+            {/* For replies (mobile-friendly collapses) */}
+            <Thread />
           </div>
-          <Thread />
         </Channel>
       </Chat>
     </div>
   );
 };
+
 export default ChatPage;
