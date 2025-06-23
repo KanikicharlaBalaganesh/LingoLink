@@ -3,6 +3,7 @@ import { useParams } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
 import { useQuery } from "@tanstack/react-query";
 import { getStreamToken } from "../lib/api";
+
 import {
   Channel,
   ChannelHeader,
@@ -22,6 +23,7 @@ const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 
 const ChatPage = () => {
   const { id: targetUserId } = useParams();
+
   const [chatClient, setChatClient] = useState(null);
   const [channel, setChannel] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -39,7 +41,10 @@ const ChatPage = () => {
       if (!tokenData?.token || !authUser) return;
 
       try {
+        console.log("Initializing stream chat client...");
+
         const client = StreamChat.getInstance(STREAM_API_KEY);
+
         await client.connectUser(
           {
             id: authUser._id,
@@ -55,6 +60,7 @@ const ChatPage = () => {
         });
 
         await currChannel.watch();
+
         setChatClient(client);
         setChannel(currChannel);
       } catch (error) {
@@ -66,14 +72,22 @@ const ChatPage = () => {
     };
 
     initChat();
+
+    return () => {
+      if (chatClient) {
+        chatClient.disconnectUser();
+      }
+    };
   }, [tokenData, authUser, targetUserId]);
 
   const handleVideoCall = () => {
     if (channel) {
       const callUrl = `${window.location.origin}/call/${channel.id}`;
+
       channel.sendMessage({
         text: `I've started a video call. Join me here: ${callUrl}`,
       });
+
       toast.success("Video call link sent successfully!");
     }
   };
@@ -81,28 +95,24 @@ const ChatPage = () => {
   if (loading || !chatClient || !channel) return <ChatLoader />;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
-      <Chat client={chatClient} theme="messaging light">
+    <div className="h-screen flex flex-col">
+      <Chat client={chatClient}>
         <Channel channel={channel}>
-          <div className="flex flex-col h-full relative">
-            {/* Call Button floating top-right */}
-            <div className="absolute top-2 right-3 z-10">
-              <CallButton handleVideoCall={handleVideoCall} />
-            </div>
-
+          <div className="flex flex-col h-full">
             <Window>
-              <div className="flex flex-col h-full">
+              <div className="relative">
                 <ChannelHeader />
-                <div className="flex-1 overflow-y-auto">
-                  <MessageList />
-                </div>
-                <div className="border-t border-base-300">
-                  <MessageInput focus />
+                <div className="absolute right-2 top-2 z-10">
+                  <CallButton handleVideoCall={handleVideoCall} />
                 </div>
               </div>
+              <div className="flex-1 overflow-y-auto">
+                <MessageList />
+              </div>
+              <div className="p-2 border-t border-gray-200">
+                <MessageInput focus />
+              </div>
             </Window>
-
-            {/* For replies (mobile-friendly collapses) */}
             <Thread />
           </div>
         </Channel>
