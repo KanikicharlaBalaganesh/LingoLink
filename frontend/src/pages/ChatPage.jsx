@@ -33,7 +33,7 @@ const ChatPage = () => {
   const { data: tokenData } = useQuery({
     queryKey: ["streamToken"],
     queryFn: getStreamToken,
-    enabled: !!authUser,
+    enabled: !!authUser, // this will run only when authUser is available
   });
 
   useEffect(() => {
@@ -54,7 +54,13 @@ const ChatPage = () => {
           tokenData.token
         );
 
+        //
         const channelId = [authUser._id, targetUserId].sort().join("-");
+
+        // you and me
+        // if i start the chat => channelId: [myId, yourId]
+        // if you start the chat => channelId: [yourId, myId]  => [myId,yourId]
+
         const currChannel = client.channel("messaging", channelId, {
           members: [authUser._id, targetUserId],
         });
@@ -72,12 +78,6 @@ const ChatPage = () => {
     };
 
     initChat();
-
-    return () => {
-      if (chatClient) {
-        chatClient.disconnectUser();
-      }
-    };
   }, [tokenData, authUser, targetUserId]);
 
   const handleVideoCall = () => {
@@ -95,30 +95,21 @@ const ChatPage = () => {
   if (loading || !chatClient || !channel) return <ChatLoader />;
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-[93vh]">
       <Chat client={chatClient}>
         <Channel channel={channel}>
-          <div className="flex flex-col h-full">
+          <div className="w-full relative">
+            <CallButton handleVideoCall={handleVideoCall} />
             <Window>
-              <div className="relative">
-                <ChannelHeader />
-                <div className="absolute right-2 top-2 z-10">
-                  <CallButton handleVideoCall={handleVideoCall} />
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto">
-                <MessageList />
-              </div>
-              <div className="p-2 border-t border-gray-200">
-                <MessageInput focus />
-              </div>
+              <ChannelHeader />
+              <MessageList />
+              <MessageInput focus />
             </Window>
-            <Thread />
           </div>
+          <Thread />
         </Channel>
       </Chat>
     </div>
   );
 };
-
 export default ChatPage;
